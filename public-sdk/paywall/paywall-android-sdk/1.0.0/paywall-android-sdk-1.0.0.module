@@ -61,11 +61,11 @@
         {
           "name": "paywall-android-sdk-1.0.0.aar",
           "url": "paywall-android-sdk-1.0.0.aar",
-          "size": 1670475,
-          "sha512": "7634e09efe88c8e2a5287fee275d8d29b5ea1b560e1878d851646a03e645d6fb9022ad7322338b437d2e5259ff24f198e79b16e79678750ee402e44f5e1303e4",
-          "sha256": "ff77e063445cdc1be8b00a5b9753575d014482c19a97522a4fa824e1a76190f9",
-          "sha1": "c8b80e39bd8aee64c9d65cf28ee7ec5252209751",
-          "md5": "cac612234d3a8866389b3463f8bedba0"
+          "size": 1670477,
+          "sha512": "a1b4648d9d0c96d7e28100999ef62069dd0eb076044cff150035ff2c7866da1af69a2b63108f32173f90959301e2e2b5cf62e6abc142f8645795f332bc23af25",
+          "sha256": "d56932d83b8384321a2ef37c8b465bb5375b318dde614624f3dfc4a334952efc",
+          "sha1": "13478eefdafa58483bb2e34c71cc2aaf3c824a19",
+          "md5": "cc41669ebb60bd458351dd326366e77c"
         }
       ]
     },
@@ -165,11 +165,11 @@
         {
           "name": "paywall-android-sdk-1.0.0.aar",
           "url": "paywall-android-sdk-1.0.0.aar",
-          "size": 1670475,
-          "sha512": "7634e09efe88c8e2a5287fee275d8d29b5ea1b560e1878d851646a03e645d6fb9022ad7322338b437d2e5259ff24f198e79b16e79678750ee402e44f5e1303e4",
-          "sha256": "ff77e063445cdc1be8b00a5b9753575d014482c19a97522a4fa824e1a76190f9",
-          "sha1": "c8b80e39bd8aee64c9d65cf28ee7ec5252209751",
-          "md5": "cac612234d3a8866389b3463f8bedba0"
+          "size": 1670477,
+          "sha512": "a1b4648d9d0c96d7e28100999ef62069dd0eb076044cff150035ff2c7866da1af69a2b63108f32173f90959301e2e2b5cf62e6abc142f8645795f332bc23af25",
+          "sha256": "d56932d83b8384321a2ef37c8b465bb5375b318dde614624f3dfc4a334952efc",
+          "sha1": "13478eefdafa58483bb2e34c71cc2aaf3c824a19",
+          "md5": "cc41669ebb60bd458351dd326366e77c"
         }
       ]
     }
