@@ -2,8 +2,8 @@
 
 Bu repository iki ana bileşenden oluşmaktadır:
 
-- **public-sdk**: Paywall Android SDK'nın dağıtım paketini içerir. Merchant'lar SDK'yı bu klasörden Gradle ile
-  projelerine ekler (bkz. [Kurulum](#1-kurulum)).
+- **public-sdk**: Paywall Android SDK'nın dağıtım paketini içerir. Merchant'lar bu klasörü indirip kendi
+  projelerine kopyalar (bkz. [Kurulum](#1-kurulum)).
 - **paywall-sdk-test**: SDK'nın tüm fonksiyonlarını cihazda deneyen Android test uygulamasıdır. SDK'yı
   `public-sdk` klasöründen kullanır; her çağrıda giden istekleri ve SDK'nın döndüğü cevabı gösterir. Android Studio
   ile `paywall-sdk-test` klasörünü açarak ya da `cd paywall-sdk-test && ./run.sh` komutuyla çalıştırılır.
@@ -45,43 +45,66 @@ implementation("paywall:paywall-android-sdk:1.0.0")
 
 ## 1. Kurulum
 
-### Bağımlılık
+### SDK'yı projenize ekleme
 
-SDK, [PaywallAndroidSdk.Public](https://github.com/paywallone/PaywallAndroidSdk.Public) reposunun `public-sdk`
-klasöründe Maven deposu olarak yayınlanır. Depoyu ve bağımlılığı ekleyin:
+SDK, `public-sdk` klasörü olarak dağıtılır. Klasörü indirip projenizin içine koyarsınız; internetten bir şey
+çekilmez.
 
-```kotlin
-// settings.gradle.kts
-dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-        maven {
-            url = uri("https://raw.githubusercontent.com/paywallone/PaywallAndroidSdk.Public/main/public-sdk")
-            content { includeGroup("paywall") }
-        }
-    }
-}
+1. `public-sdk` klasörünü projenizin kök klasörüne, `settings.gradle.kts` dosyasının yanına kopyalayın:
 
-// app/build.gradle.kts
-dependencies {
-    implementation("paywall:paywall-android-sdk:1.0.0")
-}
-```
+   ```
+   MerchantApp/
+   ├── app/
+   ├── public-sdk/
+   │   └── paywall/paywall-android-sdk/
+   │       ├── maven-metadata.xml
+   │       └── 1.0.0/  (paywall-android-sdk-1.0.0.aar, .pom, .module ...)
+   ├── settings.gradle.kts
+   └── build.gradle.kts
+   ```
 
-İnternetten çekmek yerine `public-sdk` klasörünü projenize kopyalayıp yerel depo olarak da kullanabilirsiniz:
+2. `settings.gradle.kts` içinde klasörü depo olarak tanımlayın:
 
-```kotlin
+   ```kotlin
+   dependencyResolutionManagement {
+       repositories {
+           google()
+           mavenCentral()
+           maven {
+               url = uri("public-sdk")
+               content { includeGroup("paywall") }
+           }
+       }
+   }
+   ```
+
+3. `app/build.gradle.kts` içine bağımlılığı ekleyin ve Gradle'ı senkronize edin (Android Studio: **Sync Now**):
+
+   ```kotlin
+   dependencies {
+       implementation("paywall:paywall-android-sdk:1.0.0")
+   }
+   ```
+
+Projeniz Groovy kullanıyorsa (`settings.gradle`, `app/build.gradle`) aynı satırlar şöyledir:
+
+```groovy
 maven {
-    url = uri("public-sdk")   // settings.gradle.kts dosyasının bulunduğu klasöre göre
+    url = uri("public-sdk")
     content { includeGroup("paywall") }
 }
+
+implementation "paywall:paywall-android-sdk:1.0.0"
 ```
 
-SDK'nın kullandığı AndroidX, Compose, OkHttp, Gson ve coroutines kütüphaneleri Gradle tarafından otomatik eklenir.
-Bu yüzden `.aar` dosyasını tek başına `libs/` klasörüne koymak yerine yukarıdaki yöntemlerden birini kullanın.
-
-Masterpass'ı ayrıca **eklemeyin**: SDK'nın içinde gelir. İkinci kez eklenirse derleme "duplicate class" hatası verir.
+- **Klasörün tamamını kopyalayın.** `.aar` dosyasını tek başına `libs/` klasörüne koymayın. SDK'nın kullandığı
+  AndroidX, Compose, OkHttp, Gson ve coroutines kütüphaneleri klasördeki `.pom` / `.module` dosyalarında tanımlıdır;
+  Gradle bunları bu dosyalardan okuyup kendisi ekler. `.aar` tek başına eklenirse bu kütüphaneler gelmez ve
+  uygulama çalışırken hata verir.
+- **Masterpass'ı ayrıca eklemeyin.** SDK'nın içinde gelir. İkinci kez eklenirse derleme "duplicate class" hatası
+  verir.
+- **Yeni sürüm geldiğinde** `public-sdk` klasörünü yenisiyle değiştirin ve bağımlılıktaki sürüm numarasını
+  güncelleyin (ör. `1.0.0` → `1.0.1`).
 
 ### Gereksinimler
 
