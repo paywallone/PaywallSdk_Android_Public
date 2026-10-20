@@ -51,8 +51,8 @@ private fun IntroSection() {
     Section("Nasıl kullanılır") {
         listOf(
             "1. Configuration: ortamı seç, merchant backend'inden alınan token'ı yapıştır.",
-            "2. Init Paywall SDK: SDK ve Masterpass hazırlanır.",
-            "3. Account Access: kullanıcının kartları gelir (gerekirse Merchant Link + OTP).",
+            "2. initPaywallSdk: SDK ve Masterpass hazırlanır.",
+            "3. getCardList: kullanıcının kartları gelir (gerekirse linkMerchant + OTP).",
             "4. Ödeme: kayıtlı kartla, yeni kartla ya da kartı kaydederek öde. OTP / 3D istenirse ekran kendiliğinden açılır.",
         ).forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
         Hint(
@@ -105,19 +105,19 @@ private fun SdkSessionSection(state: HarnessState) {
     val context = LocalContext.current
     Section("A) SDK / Session Control Panel") {
         ActionRow(
-            label = "Init Paywall SDK (with Session)",
+            label = "PaywallSdk.initPaywallSdk",
             action = state.sdkInit,
             enabled = state.accessToken.isNotBlank() && !state.sdkInit.success,
             onClick = { state.initPaywallSdk(context) },
         )
         ActionRow(
-            label = "Init Masterpass Provider",
+            label = "PaywallSdk.providers.masterpass.init",
             action = state.providerInit,
             enabled = state.sessionId != null && !state.providerInit.success,
             onClick = state::initMasterpassProvider,
         )
         Text(
-            "Init Paywall SDK başarılı olunca Masterpass provider otomatik başlatılır.",
+            "initPaywallSdk başarılı olunca providers.masterpass.init otomatik çağrılır.",
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -129,7 +129,7 @@ private fun AccountCardSection(state: HarnessState) {
     Section("B) Account / Card Operations") {
         Field("User Phone (accountKey)", state.userPhone, { state.userPhone = it.trim() }, KeyboardType.Phone)
         Field("User ID", state.userId, { state.userId = it.trim() })
-        ActionRow("Account Access (Card List)", state.cardList, enabled = ready, onClick = state::accountAccess)
+        ActionRow("PaywallSdk.providers.masterpass.getCardList", state.cardList, enabled = ready, onClick = state::accountAccess)
 
         if (state.cards.isNotEmpty()) {
             Text("Cards (${state.cards.size})", style = MaterialTheme.typography.titleSmall)
@@ -140,14 +140,14 @@ private fun AccountCardSection(state: HarnessState) {
                         Text("${card.masked} · default: ${if (card.isDefault) "Yes" else "No"}", style = MaterialTheme.typography.bodySmall)
                     }
                     TextButton(onClick = { state.confirmDeleteCard(card) }, enabled = !state.cardDelete.loading) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                        Text("deleteCard", color = MaterialTheme.colorScheme.error)
                     }
                 }
                 HorizontalDivider()
             }
         }
 
-        ActionRow("Merchant Link", state.merchantLink, enabled = ready, onClick = state::merchantLink)
+        ActionRow("PaywallSdk.providers.masterpass.linkMerchant", state.merchantLink, enabled = ready, onClick = state::merchantLink)
         if (state.cardDelete.response != null || state.cardDelete.error != null) {
             ResultView(state.cardDelete, title = if (state.cardDelete.success) "✔ Delete Success" else "✖ Delete Failed")
         }
@@ -233,7 +233,7 @@ private fun PaymentSection(state: HarnessState, inputs: SecureInputs) {
                 else -> Hint("Selected: ${selected.alias} (${selected.bin})")
             }
             ActionRow(
-                label = "Pay With Registered Card",
+                label = "PaywallSdk.payment.init (REGISTERED_CARD)",
                 action = state.registeredPayment,
                 enabled = ready && state.cards.isNotEmpty() && selected != null,
                 onClick = state::payWithRegisteredCard,
@@ -260,16 +260,20 @@ private fun PaymentSection(state: HarnessState, inputs: SecureInputs) {
             PaywallTermsCheckBox(state = inputs.terms) {
                 Text("Masterpass kullanım koşullarını kabul ediyorum (kart kaydı için zorunlu)", style = MaterialTheme.typography.bodySmall)
             }
-            ActionRow("Kart Kaydet", state.addCard, enabled = ready, onClick = state::addCardToMasterpass)
+            ActionRow("PaywallSdk.providers.masterpass.addCard", state.addCard, enabled = ready, onClick = state::addCardToMasterpass)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = state.saveCardOnPayment, onCheckedChange = { state.saveCardOnPayment = it })
                 Column {
-                    Text("Kartımı Kaydet ve Öde", fontWeight = FontWeight.Medium)
-                    Hint("(Kart kaydı ve ödeme işlemi tek seferde yapılacak)")
+                    Text("Kartımı kaydet ve öde", fontWeight = FontWeight.Medium)
+                    Hint("İşaretliyse kart kaydı ve ödeme tek seferde yapılır: payment.registerAndPurchase")
                 }
             }
             ActionRow(
-                label = "Pay With Manual Card",
+                label = if (state.saveCardOnPayment) {
+                    "PaywallSdk.payment.registerAndPurchase"
+                } else {
+                    "PaywallSdk.payment.init (MANUAL_CARD)"
+                },
                 action = state.manualPayment,
                 enabled = ready,
                 onClick = state::payWithManualCard,

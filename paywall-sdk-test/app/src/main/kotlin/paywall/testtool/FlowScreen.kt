@@ -58,7 +58,7 @@ fun FlowScreen(state: HarnessState, network: NetworkCapture) {
     }
 
     if (state.logs.isEmpty()) {
-        Text("Henüz çağrı yok. Test sekmesinden \"Init Paywall SDK\" ile başlayın.", style = MaterialTheme.typography.bodyMedium)
+        Text("Henüz çağrı yok. Test sekmesinden \"PaywallSdk.initPaywallSdk\" ile başlayın.", style = MaterialTheme.typography.bodyMedium)
     }
     val format = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.ROOT) }
     state.logs.asReversed().forEachIndexed { reversedIndex, step ->

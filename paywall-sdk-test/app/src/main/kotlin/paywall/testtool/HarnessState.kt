@@ -114,7 +114,7 @@ class OtpRequest(val title: String, val message: String, val pendingAction: Stri
  * State and actions behind the "Test" tab (sections A–D). Things to know:
  * - card number, CVV and OTP come from the Paywall secure fields (the SDK accepts nothing else);
  * - a 3D URL can be opened in a WebView;
- * - Masterpass terms consent is needed for "Kart Kaydet" and "Kartımı Kaydet ve Öde".
+ * - Masterpass terms consent is needed for addCard and registerAndPurchase.
  */
 class HarnessState(private val inputs: SecureInputs, private val saved: PersistedFields) {
 
@@ -200,7 +200,7 @@ class HarnessState(private val inputs: SecureInputs, private val saved: Persiste
      * "Yenile": starts the flow over. Running calls are stopped; statuses, session, cards, OTP / 3D steps, logs
      * and the secure fields are cleared. Saved form fields stay unless [clearSavedFields] is set. Card number and
      * CVV are never saved (they live only in the secure fields). The SDK state is replaced on the next
-     * "Init Paywall SDK".
+     * initPaywallSdk.
      */
     fun refresh(clearSavedFields: Boolean) {
         scope.coroutineContext[Job]?.cancelChildren()
@@ -396,7 +396,7 @@ class HarnessState(private val inputs: SecureInputs, private val saved: Persiste
         }
     }
 
-    /** "Kart Kaydet" button. */
+    /** providers.masterpass.addCard button. */
     fun addCardToMasterpass() {
         if (!isProviderAndSessionReady) {
             addCard.error = "Provider and session must be ready first"

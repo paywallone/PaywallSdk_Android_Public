@@ -46,12 +46,14 @@ fun OtpDialog(state: HarnessState, request: OtpRequest, inputs: SecureInputs) {
             }
         },
         confirmButton = {
-            Button(onClick = state::submitOtp, enabled = inputs.otp.digitCount > 0) { Text("Confirm") }
+            Button(onClick = state::submitOtp, enabled = inputs.otp.digitCount > 0) {
+                Text("PaywallSdk.providers.masterpass.verifyOtp")
+            }
         },
         dismissButton = {
             Row {
                 TextButton(onClick = state::resendOtp, enabled = !state.otpResendLoading) {
-                    Text(if (state.otpResendLoading) "Gönderiliyor..." else "Resend OTP")
+                    Text(if (state.otpResendLoading) "Gönderiliyor..." else "resendOtp")
                 }
                 TextButton(onClick = state::cancelOtp) { Text("Cancel") }
             }
@@ -92,7 +94,7 @@ fun DeleteCardDialog(state: HarnessState, card: CardRow) {
         title = { Text("Confirm Delete Card") },
         text = { Text("Are you sure you want to delete card: ${card.alias}?") },
         confirmButton = {
-            Button(onClick = state::deleteCard) { Text("Delete") }
+            Button(onClick = state::deleteCard) { Text("PaywallSdk.providers.masterpass.deleteCard") }
         },
         dismissButton = {
             TextButton(onClick = { state.cardToDelete = null }) { Text("Cancel") }
