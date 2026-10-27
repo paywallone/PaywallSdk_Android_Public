@@ -163,13 +163,13 @@ SDK **hiçbir zaman exception fırlatmaz**. Her durumda bir `SdkResponse` döner
 | `errorCode` | Yalnızca `FAILED`'da dolu. Bkz. [Hata kodları](#7-hata-kodları) |
 | `actionType` | Yalnızca `ACTION_REQUIRED`'da dolu: `BANK_OTP`, `MASTERPASS_OTP`, `THREE_D` (JSON'da `"3D"`), `MERCHANT_LINK_REQUIRED` |
 | `data` | Fonksiyona özel sonuç (kartlar, `redirectUrl`, `paymentId`...) |
-| `providerMeta` | `httpStatus` ve sağlayıcı cevap kodu (ör. Masterpass `0000`, `5010`) |
+| `providerMeta` | Teknik bilgi; çoğu cevapta `data.providerMeta` içindedir. Bkz. [providerMeta](#providermeta) |
 | `field` | Validasyon hatasında hatalı alanın adı |
 | `actionHint` / `nextActionHint` | Sıradaki adım için ipucu |
 
 Bu dokümandaki örnek cevaplar JSON olarak gösterilmiştir. Kotlin'de aynı alanlar `SdkResponse` nesnesinin
 property'leridir; `status`, `source` ve `actionType` enum'dur (JSON'daki değerleri `wireValue`). Örneklerde `null`
-alanlar kısalık için yazılmamıştır. Tam bir cevap şöyle görünür:
+alanlar ve `providerMeta.raw` kısalık için yazılmamıştır. Tam bir cevap şöyle görünür:
 
 ```json
 {
@@ -186,6 +186,36 @@ alanlar kısalık için yazılmamıştır. Tam bir cevap şöyle görünür:
   "nextActionHint": null
 }
 ```
+
+### `providerMeta`
+
+Sağlayıcının (Paywall / Masterpass) teknik bilgisi. Kullanıcıya gösterilmez; hata ayıklama ve kayıt içindir.
+
+| Alan | Anlamı |
+|---|---|
+| `httpStatus` | HTTP durum kodu |
+| `responseCode` | Sağlayıcının cevap kodu (ör. Masterpass `0000` başarılı, `5008` OTP, `5010` 3D) |
+| `raw` | Paywall / Masterpass'ın ham cevabı (JSON metni) |
+
+Nerede bulunur (web SDK ile aynı):
+
+- `data` dolu olan her cevapta `data.providerMeta` içindedir.
+- Ön kontrol hatalarında (`SDK_NOT_INITIALIZED`, `PROVIDER_NOT_INITIALIZED` vb.) ayrıca `response.providerMeta`'dadır.
+- `data`'sı olmayan hatalarda (ör. Masterpass'ın reddettiği ödeme) yalnızca `response.providerMeta`'dadır.
+
+Her durumda okumak için:
+
+```kotlin
+val providerMeta = response.data?.providerMeta ?: response.providerMeta
+```
+
+`raw` her zaman dolmaz:
+
+- `payment.init` ve `initWithRegisteredCard`: her zaman.
+- `registerAndPurchase`: Masterpass hata döndürdüğünde her zaman, diğer sonuçlarda yalnızca DEBUG'da.
+- Diğer fonksiyonlar: yalnızca `initPaywallSdk(..., logLevel = PaywallLogLevel.DEBUG)` ile.
+
+### Cevabı işleme
 
 Her cevap için önerilen işleme şekli:
 
@@ -324,6 +354,7 @@ val response = PaywallSdk.initPaywallSdk(
 | `environment` | `DEV`, `TEST`, `PROD` |
 | `token` | Merchant backend'inin Paywall'dan aldığı geçici token |
 | `includeMasterpassSession` | Masterpass işlemleri için `true` |
+| `logLevel` | İsteğe bağlı, varsayılan `PaywallLogLevel.ERROR`. `DEBUG`'da `providerMeta.raw` tüm fonksiyonlarda dolar |
 
 `data`: `InitPaywallSdkResult` → `environment`, `sdkInitialized`, `hasMasterpassSession`, `body.masterpass`
 (`sessionId`, `userId`, `userPhone`, `masterpassMerchantId`, `sessionExpiryDate`, `force3D`...).
@@ -341,7 +372,7 @@ val response = PaywallSdk.initPaywallSdk(
     "sdkInitialized": true,
     "hasMasterpassSession": true,
     "body": {
-      "tempTokenId": "f1c2...",
+      "tempTokenId": 123456,
       "expiryDateTime": "2026-10-19T14:30:00",
       "masterpass": {
         "sessionId": "8f6d1c2e-...",
@@ -429,9 +460,9 @@ val response = PaywallSdk.providers.masterpass.getCardList(
         "expireSoon": false
       }
     ],
-    "accountInformation": { "isAccountLinked": true }
-  },
-  "providerMeta": { "httpStatus": 200, "responseCode": "0000" }
+    "accountInformation": { "isAccountLinked": true },
+    "providerMeta": { "httpStatus": 200, "responseCode": "0000" }
+  }
 }
 ```
 
@@ -444,8 +475,7 @@ val response = PaywallSdk.providers.masterpass.getCardList(
   "source": "MASTERPASS",
   "message": "Account is not linked to merchant",
   "actionType": "MERCHANT_LINK_REQUIRED",
-  "data": {},
-  "providerMeta": { "httpStatus": 404, "responseCode": "ACCOUNT_NOT_LINKED_TO_MERCHANT" }
+  "data": { "providerMeta": { "httpStatus": 404, "responseCode": "ACCOUNT_NOT_LINKED_TO_MERCHANT" } }
 }
 ```
 
@@ -479,8 +509,7 @@ val response = PaywallSdk.providers.masterpass.linkMerchant(
   "source": "MASTERPASS",
   "message": "Masterpass OTP verification is required. Please enter the OTP code sent by Masterpass.",
   "actionType": "MASTERPASS_OTP",
-  "data": { "token": "a1b2c3...9f8e" },
-  "providerMeta": { "httpStatus": 202, "responseCode": "5008" }
+  "data": { "token": "a1b2c3...9f8e", "providerMeta": { "httpStatus": 202, "responseCode": "5008" } }
 }
 ```
 
@@ -511,8 +540,7 @@ OTP bir ödemeye aitse `paymentId`, `masterpassPaymentId`, `uniqueCode`, `succes
   "status": "SUCCESS",
   "source": "MASTERPASS",
   "message": "OTP verified successfully",
-  "data": { "isVerified": true, "token": "d4e5f6...1a2b", "retrievalReferenceNumber": "200003642398" },
-  "providerMeta": { "httpStatus": 200, "responseCode": "0000" }
+  "data": { "isVerified": true, "token": "d4e5f6...1a2b", "retrievalReferenceNumber": "200003642398", "providerMeta": { "httpStatus": 200, "responseCode": "0000" } }
 }
 ```
 
@@ -534,9 +562,9 @@ OTP bir ödemeye aitse `paymentId`, `masterpassPaymentId`, `uniqueCode`, `succes
     "failUrl": "https://merchant.com/fail",
     "paymentId": 123456,
     "uniqueCode": "8dd69b76-...",
-    "merchantUniqueCode": "MERCHANT-ORDER-123"
-  },
-  "providerMeta": { "httpStatus": 202, "responseCode": "5010" }
+    "merchantUniqueCode": "MERCHANT-ORDER-123",
+    "providerMeta": { "httpStatus": 202, "responseCode": "5010" }
+  }
 }
 ```
 
@@ -549,8 +577,7 @@ OTP bir ödemeye aitse `paymentId`, `masterpassPaymentId`, `uniqueCode`, `succes
   "source": "MASTERPASS",
   "message": "OTP code is not valid",
   "errorCode": "OTP_IS_NOT_VALID",
-  "data": { "isVerified": false },
-  "providerMeta": { "httpStatus": 400, "responseCode": "OTP_IS_NOT_VALID" },
+  "data": { "isVerified": false, "providerMeta": { "httpStatus": 400, "responseCode": "OTP_IS_NOT_VALID" } },
   "field": "otp"
 }
 ```
@@ -561,6 +588,7 @@ OTP bir ödemeye aitse `paymentId`, `masterpassPaymentId`, `uniqueCode`, `succes
 | `ACTION_REQUIRED` · `BANK_OTP` / `MASTERPASS_OTP` | İkinci bir OTP gerekiyor (ör. önce Masterpass, sonra banka) | OTP ekranını tekrar göster |
 | `ACTION_REQUIRED` · `THREE_D` | OTP'den sonra 3D gerekiyor | `data.redirectUrl`'i aç ([3D akışı](#6-3d-secure-akışı)) |
 | `FAILED` · `OTP_IS_NOT_VALID` | Yanlış kod | Kullanıcı tekrar denesin; ödeme beklemede kalır |
+| `FAILED` · `MASTERPASS_TIMEOUT` | Masterpass zamanında cevap vermedi | Tekrar denenebilir; ödeme beklemede kalır |
 | `FAILED` · `MISSING_OTP_CODE` | Kod girilmedi | Kod iste |
 
 ### 4.6 `providers.masterpass.resendOtp`
@@ -580,8 +608,7 @@ val response = PaywallSdk.providers.masterpass.resendOtp()
   "source": "MASTERPASS",
   "message": "OTP resent. Masterpass OTP verification is required. Please enter the OTP code sent by Masterpass.",
   "actionType": "MASTERPASS_OTP",
-  "data": { "token": "a1b2c3...9f8e" },
-  "providerMeta": { "httpStatus": 202, "responseCode": "5008" }
+  "data": { "token": "a1b2c3...9f8e", "providerMeta": { "httpStatus": 202, "responseCode": "5008" } }
 }
 ```
 
@@ -621,8 +648,7 @@ eklemede `null`'dır; maskeli numara sonraki `getCardList`'te gelir.
   "status": "SUCCESS",
   "source": "MASTERPASS",
   "message": "Card added successfully.",
-  "data": { "sessionId": "8f6d1c2e-...", "cardAlias": "Maaş kartım" },
-  "providerMeta": { "httpStatus": 200, "responseCode": "0000" }
+  "data": { "sessionId": "8f6d1c2e-...", "cardAlias": "Maaş kartım", "providerMeta": { "httpStatus": 200, "responseCode": "0000" } }
 }
 ```
 
@@ -635,8 +661,7 @@ eklemede `null`'dır; maskeli numara sonraki `getCardList`'te gelir.
   "source": "MASTERPASS",
   "message": "This card is already registered. Please try adding a different card.",
   "errorCode": "4004",
-  "data": { "sessionId": "8f6d1c2e-..." },
-  "providerMeta": { "httpStatus": 400, "responseCode": "4004" }
+  "data": { "sessionId": "8f6d1c2e-...", "providerMeta": { "httpStatus": 400, "responseCode": "4004" } }
 }
 ```
 
@@ -667,8 +692,7 @@ val response = PaywallSdk.providers.masterpass.deleteCard(
   "status": "SUCCESS",
   "source": "MASTERPASS",
   "message": "Card deleted successfully",
-  "data": { "success": true },
-  "providerMeta": { "httpStatus": 200, "responseCode": "0000" }
+  "data": { "success": true, "providerMeta": { "httpStatus": 200, "responseCode": "0000" } }
 }
 ```
 
@@ -689,7 +713,7 @@ eder → Paywall'da ödeme kaydını açar → ödemeyi Masterpass'ta başlatır
 ```kotlin
 val paymentDetail = PaymentDetail(
     amount = BigDecimal("100.00"),
-    currencyId = 1,
+    currencyId = 1,                              // TRY. Para birimi listesi: https://developer.paywall.one/sistem-verileri/para-birimleri
     merchantUniqueCode = "MERCHANT-ORDER-123",   // her ödemede benzersiz
     trackingCode = "TRACK-123",
     successUrl = "https://merchant.com/success",
@@ -742,7 +766,7 @@ val response = PaywallSdk.payment.init(
 | Parametre | Açıklama |
 |---|---|
 | `paymentSource` | `MANUAL_CARD` (yeni kart) veya `REGISTERED_CARD` (kayıtlı kart) |
-| `paymentDetail` | Tutar, para birimi, merchant kodları, dönüş URL'leri, IP, taksit; isteğe bağlı `channelId`, `tagId` |
+| `paymentDetail` | Tutar, para birimi (`currencyId`, ör. `1` TRY; [para birimi listesi](https://developer.paywall.one/sistem-verileri/para-birimleri)), merchant kodları, dönüş URL'leri, IP, taksit; isteğe bağlı `channelId`, `tagId` |
 | `cardData` | Masterpass'a giden kart verisi (Paywall'a gitmez). Yeni kartta kart numarası, son kullanma (MMYY), CVV ve kart sahibi zorunlu; kayıtlı kartta `cardAlias` zorunlu |
 | `card` | Paywall'a giden maskeli bilgi. Yeni kartta boş bırakılabilir: BIN kart alanından alınır |
 | `products` | Ürün listesi |
@@ -776,9 +800,9 @@ val response = PaywallSdk.payment.init(
     "activityId": 654321,
     "uniqueCode": "8dd69b76-...",
     "merchantUniqueCode": "MERCHANT-ORDER-123",
-    "maskedCard": { "bin": "54561600", "last4": "3487", "masked": "54561600****3487" }
+    "maskedCard": { "bin": "54561600", "last4": "3487", "masked": "54561600****3487" },
+    "providerMeta": { "httpStatus": 200, "responseCode": "0000" }
   },
-  "providerMeta": { "httpStatus": 200, "responseCode": "0000" },
   "nextActionHint": "Please commit the payment."
 }
 ```
@@ -802,13 +826,13 @@ val response = PaywallSdk.payment.init(
     "failUrl": "https://merchant.com/fail",
     "paymentId": 123456,
     "uniqueCode": "8dd69b76-...",
-    "merchantUniqueCode": "MERCHANT-ORDER-123"
-  },
-  "providerMeta": { "httpStatus": 202, "responseCode": "5010" }
+    "merchantUniqueCode": "MERCHANT-ORDER-123",
+    "providerMeta": { "httpStatus": 202, "responseCode": "5010" }
+  }
 }
 ```
 
-Örnek cevap (Masterpass ödemeyi reddetti):
+Örnek cevap (Masterpass ödemeyi reddetti). `data` olmadığı için `providerMeta` cevabın kendisindedir:
 
 ```json
 {
@@ -829,9 +853,12 @@ val response = PaywallSdk.payment.init(
 | `FAILED` · `source = SDK` | Parametre hatası; istek gönderilmedi | `field` / `message`'a göre düzelt |
 | `FAILED` · `source = PAYWALL` | Paywall ödeme kaydını açmadı | `errorCode` / `message`'ı göster |
 | `FAILED` · `source = MASTERPASS` | Masterpass ödemeyi reddetti | `errorCode` / `message`'ı göster. SDK ödemeyi Paywall'a başarısız olarak bildirdi; kullanıcı tekrar deneyebilir |
+| `FAILED` · `MASTERPASS_TIMEOUT` | Masterpass zamanında cevap vermedi; ödemenin sonucu belirsiz | Tekrar denemeden önce ödemenin durumunu backend'inizden (Paywall'dan) sorgulayın |
 
 `maskedCard`: ilk 8 hane kart alanından, son 4 hane Masterpass'ın döndüğü maskeli numaradan gelir. Masterpass'ın
-maskeli numara dönmediği durumlarda (ör. 3D başlangıcı) yeni kartla ödemede `null` olabilir.
+maskeli numara dönmediği durumlarda (ör. 3D başlangıcı) yeni kartla ödemede `null` olabilir. Kayıtlı kartla ödemede
+verilen `cardBin` ve `maskedCard`'dan oluşur; Masterpass kartı yalnızca son 2 hanesi açık listelediyse
+(`55711355******75`) `last4` `**75` olur.
 
 ### 4.10 `payment.initWithRegisteredCard`
 
@@ -873,8 +900,7 @@ val response = PaywallSdk.payment.registerAndPurchase(
 )
 ```
 
-Farkları: koşul kutusu işaretli değilse `FAILED` · `TERMS_NOT_ACCEPTED`; Masterpass hatasında `errorCode`
-Masterpass'ın kendi kodudur (ör. `CARD_ALREADY_EXISTS`).
+Farkı: koşul kutusu işaretli değilse `FAILED` · `TERMS_NOT_ACCEPTED`.
 
 ---
 
@@ -919,29 +945,30 @@ webView.loadUrl(redirectUrl)
 
 ## 7. Hata kodları
 
-`errorCode` yalnızca `FAILED`'da dolar. Değerler web SDK ile aynıdır; sabitler `SdkErrorCodes` içindedir.
+`errorCode` yalnızca `FAILED`'da dolar. Değerler web SDK ile aynıdır; sabitler `SdkErrorCodes` içindedir
+(ör. `SdkErrorCodes.OTP_IS_NOT_VALID`).
 
 **Çağrı sırası ve session:** `SDK_NOT_INITIALIZED`, `SESSION_NOT_STARTED`, `MISSING_TOKEN`,
 `PROVIDER_NOT_INITIALIZED`, `SESSION_EXPIRED` (yeni token ile `initPaywallSdk`), `SDK_NOT_LOADED`,
 `INVALID_SESSION`, `MISSING_SESSION_ID`.
 
-**Başlatma:** `INVALID_ENVIRONMENT`, `MISSING_INCLUDE_MASTERPASS_SESSION`, `VERIFY_RESPONSE_INVALID`,
-`MASTERPASS_OBJECT_NULL`, `INIT_WITH_MASTERPASS_TOKEN_ERROR`, `MISSING_MERCHANT_ID`,
-`MASTERPASS_PROVIDER_INIT_ERROR`.
+**Başlatma:** `VERIFY_RESPONSE_INVALID`, `MASTERPASS_OBJECT_NULL`, `INIT_WITH_MASTERPASS_TOKEN_ERROR`,
+`MISSING_MERCHANT_ID`, `MASTERPASS_PROVIDER_INIT_ERROR`.
 
 **Parametre kontrolü** (`field` hatalı alanı gösterir): `MISSING_USER_ID`, `MISSING_ACCOUNT_KEY`,
 `MISSING_CARD_ALIAS`, `MISSING_CARD_HOLDER_NAME`, `MISSING_CARD_NUMBER`, `INVALID_CARD_NUMBER_FORMAT`,
 `MISSING_EXPIRY_DATE`, `INVALID_EXPIRY_DATE_FORMAT`, `MISSING_CVV`, `INVALID_CVV_FORMAT`,
 `MISSING_REQUEST_REFERENCE_NUMBER`, `MISSING_OTP_CODE`, `INVALID_AMOUNT`, `INVALID_CURRENCY_ID`,
 `MISSING_MERCHANT_UNIQUE_CODE`, `MISSING_TRACKING_CODE`, `MISSING_SUCCESS_URL`, `MISSING_FAIL_URL`,
-`MISSING_CLIENT_IP`, `ALIAS_REQUIRED`, `MISSING_OWNER_NAME`, `MISSING_CARD_DATA`, `TERMS_NOT_ACCEPTED` (yalnızca
-Android).
+`MISSING_CLIENT_IP`, `ALIAS_REQUIRED`, `MISSING_OWNER_NAME`, `MISSING_CARD_DATA`, `TERMS_NOT_ACCEPTED` (mobil SDK'lara
+özel; web SDK'da yok).
 
 **İşlem:** `USER_NOT_FOUND`, `TOKEN_ALREADY_USED`, `DELETE_FAILED`, `UNKNOWN_ERROR`.
 
-**Ödeme:** `PAYWALL_INIT_FAILED` (ya da Paywall'ın kendi `ErrorCode`'u), `MISSING_MASTERPASS_REQUEST_BODY`,
-`PAYMENT_INIT_FAILED`, `MASTERPASS_ERROR` (Masterpass'a ulaşılamadı), `SDK_ERROR` (beklenmeyen hata, ör. Paywall'a
-ulaşılamadı).
+**Ödeme:** `PAYWALL_INIT_FAILED` (ya da Paywall'ın kendi `ErrorCode`'u; Paywall'a ulaşılamadığında da bu döner),
+`MISSING_MASTERPASS_REQUEST_BODY`, `PAYMENT_INIT_FAILED`, `MASTERPASS_ERROR` (Masterpass'a ulaşılamadı),
+`MASTERPASS_TIMEOUT` (Masterpass zamanında cevap vermedi; ödemenin sonucu belirsizdir, tekrar denemeden önce
+sorgulayın), `SDK_ERROR` (beklenmeyen hata).
 
 **Masterpass'ın bilinen hataları** (SDK kodu + açıklayıcı mesaj):
 

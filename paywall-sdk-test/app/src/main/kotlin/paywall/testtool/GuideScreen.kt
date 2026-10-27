@@ -67,7 +67,7 @@ private fun HandlingSection() {
             "actionType (yalnızca ACTION_REQUIRED): BANK_OTP, MASTERPASS_OTP, 3D, MERCHANT_LINK_REQUIRED",
             "errorCode + message (yalnızca FAILED): Masterpass kodları aşağıdaki listede",
             "data: işleme özel sonuç (kartlar, redirectUrl, paymentId, maskedCard...)",
-            "providerMeta: httpStatus ve Masterpass responseCode (ör. 0000, 5010)",
+            "data.providerMeta: httpStatus, Masterpass responseCode (ör. 0000, 5010) ve raw (ham cevap). data yoksa cevabın kendisinde",
         ).forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
     }
 }

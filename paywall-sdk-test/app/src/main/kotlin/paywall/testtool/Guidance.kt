@@ -169,7 +169,9 @@ object Guide {
                 if (action != null) steps += action.actions
                 when (code) {
                     "MASTERPASS_ERROR" -> steps += "Masterpass'a ulaşılamadı ya da cevap çözülemedi; bağlantıyı kontrol edip tekrar dene."
-                    "SDK_ERROR" -> steps += "Beklenmeyen hata (ör. Paywall'a ulaşılamadı). message alanına bak."
+                    "MASTERPASS_TIMEOUT" -> steps += "Masterpass zamanında cevap vermedi; ödemenin sonucu belirsiz. " +
+                        "Tekrar denemeden önce ödemenin durumunu Paywall'dan sorgula."
+                    "SDK_ERROR" -> steps += "Beklenmeyen hata. message alanına bak."
                 }
                 if (response.message != null && response.message != meaning) steps += "SDK mesajı: ${response.message}"
             }
